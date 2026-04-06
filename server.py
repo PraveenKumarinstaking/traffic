@@ -16,8 +16,8 @@ app = FastAPI(title="Emergency-Aware Traffic Signal Control API")
 
 @app.get("/")
 async def root():
-    """Redirects users to the dashboard UI."""
-    return RedirectResponse(url="/dashboard")
+    """Redirects users to the dashboard UI with a trailing slash to avoid double redirects."""
+    return RedirectResponse(url="/dashboard/")
 
 @app.post("/reset", response_model=Observation)
 async def reset():

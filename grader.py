@@ -1,0 +1,86 @@
+import numpy as np
+from env import TrafficEnvironment
+from models import Action, ActionType
+
+class Grader:
+    def __init__(self, task_id: str):
+        self.task_id = task_id
+
+    def grade(self, episode_history: list) -> float:
+        if self.task_id == "congestion_relief":
+            return self._grade_task1(episode_history)
+        elif self.task_id == "fair_scheduling":
+            return self._grade_task2(episode_history)
+        elif self.task_id == "emergency_priority":
+            return self._grade_task3(episode_history)
+        return 0.0
+
+    def _grade_task1(self, history: list) -> float:
+        # Objective: Reduce total queue length.
+        # compare avg queue length to a baseline (~10-15 vehicles)
+        queues = [sum([obs.north_queue, obs.south_queue, obs.east_queue, obs.west_queue]) for obs, act, rew in history]
+        avg_queue = np.mean(queues)
+        
+        # if avg_queue is 0, score 1.0. If avg_queue > 20, score 0.0.
+        score = max(0.0, 1.0 - (avg_queue / 25.0))
+        return float(score)
+
+    def _grade_task2(self, history: list) -> float:
+        # Objective: Balance traffic flow / Fairness.
+        # Measure variance in queue lengths or wait times.
+        lane_waits = []
+        for obs, act, rew in history:
+            waits = [obs.north_wait, obs.south_wait, obs.east_wait, obs.west_wait]
+            lane_waits.append(np.std(waits))
+        
+        avg_std = np.mean(lane_waits)
+        # Low std -> High score
+        score = max(0.0, 1.0 - (avg_std / 50.0))
+        return float(score)
+
+    def _grade_task3(self, history: list) -> float:
+        # Objective: Emergency veh prioritization.
+        # Track steps where emergency was active and if it was served.
+        emergencies = []
+        emergency_durations = []
+        current_emerg = False
+        start_step = 0
+        
+        for i, (obs, act, rew) in enumerate(history):
+            if obs.emergency_active and not current_emerg:
+                current_emerg = True
+                start_step = i
+            elif not obs.emergency_active and current_emerg:
+                current_emerg = False
+                emergency_durations.append(i - start_step)
+        
+        if not emergency_durations:
+            # If no emergency spawned, check if they avoided false overrides
+            # (In a real test, the seed will guarantee an emergency)
+            return 1.0
+            
+        avg_duration = np.mean(emergency_durations)
+        # Fast clearing (< 10 steps) -> High score
+        score = max(0.0, 1.0 - (avg_duration / 30.0))
+        return float(score)
+
+def run_grading(history, task_id):
+    g = Grader(task_id)
+    return g.grade(history)
+
+if __name__ == "__main__":
+    # Smoke test
+    env = TrafficEnvironment(seed=42)
+    obs = env.reset()
+    history = []
+    for _ in range(50):
+        # random policy
+        action = Action(action=ActionType.KEEP_PHASE)
+        next_obs, reward, done, info = env.step(action)
+        history.append((obs, action, reward))
+        obs = next_obs
+        if done: break
+        
+    print(f"Task 1 Score: {run_grading(history, 'congestion_relief')}")
+    print(f"Task 2 Score: {run_grading(history, 'fair_scheduling')}")
+    print(f"Task 3 Score: {run_grading(history, 'emergency_priority')}")

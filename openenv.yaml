@@ -1,0 +1,25 @@
+name: emergency_traffic_control
+version: "1.0.0"
+description: "A real-world emergency-aware traffic signal control environment. Manage a 4-way intersection to minimize congestion and prioritize emergency vehicles."
+author: "Antigravity Assistant"
+license: "MIT"
+
+environment:
+  entrypoint: "env:TrafficEnvironment"
+  max_steps: 100
+  observation_space: "Observation"
+  action_space: "Action"
+
+tasks:
+  - id: congestion_relief
+    name: "Task 1 — Basic Congestion Relief"
+    difficulty: "Easy"
+    objective: "Reduce total queue length over a short horizon."
+  - id: fair_scheduling
+    name: "Task 2 — Fair Phase Scheduling"
+    difficulty: "Medium"
+    objective: "Balance traffic flow across all four directions without starvation."
+  - id: emergency_priority
+    name: "Task 3 — Emergency Vehicle Prioritization"
+    difficulty: "Hard"
+    objective: "Detect and prioritize emergency vehicles with minimal delay."

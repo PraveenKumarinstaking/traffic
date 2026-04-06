@@ -1,26 +1,58 @@
+from fastapi import FastAPI, Body
 import gradio as gr
 import numpy as np
-import time
 from env import TrafficEnvironment
-from models import Action, ActionType
+from models import Action, ActionType, Observation, Reward
+from typing import Dict, Any
+
+# Initialize the global environment
+global_env = TrafficEnvironment(seed=42)
+
+# Initialize FastAPI
+app = FastAPI(title="Emergency-Aware Traffic Signal Control API")
+
+# --- OpenEnv API Endpoints ---
+
+@app.post("/reset", response_model=Observation)
+async def reset():
+    """Resets the environment and returns the initial observation."""
+    obs = global_env.reset()
+    return obs
+
+@app.post("/step")
+async def step(action: Action):
+    """Executes a step in the environment."""
+    obs, reward, done, info = global_env.step(action)
+    return {
+        "observation": obs,
+        "reward": reward,
+        "done": done,
+        "info": info
+    }
+
+@app.get("/state")
+async def state():
+    """Returns the current state of the environment."""
+    return global_env.state()
+
+# --- Gradio UI ---
 
 def simulate_run(task_id):
-    env = TrafficEnvironment(seed=42)
-    obs = env.reset()
+    # Use a fresh env for local demo to not interfere with global API state
+    demo_env = TrafficEnvironment(seed=42)
+    obs = demo_env.reset()
     
     logs = []
     frames = []
     
-    for i in range(20): # Short run for demo
-        # Simple heuristic
+    for i in range(20):
         if obs.emergency_active:
             action = Action(action=ActionType.EMERGENCY_OVERRIDE)
         else:
             action = Action(action=ActionType.KEEP_PHASE)
             
-        next_obs, reward, done, info = env.step(action)
+        next_obs, reward, done, info = demo_env.step(action)
         
-        # Create a visual representation
         frame = f"""
         Intersection Status (Step {i}):
         Phase: {obs.current_phase}
@@ -58,5 +90,10 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
         
     run_btn.click(simulate_run, inputs=[task_dropdown], outputs=[viz, output_logs])
 
+# --- Mounting Gradio ---
+# Mount at /dashboard to prevent shadowing the API routes at the root
+app = gr.mount_gradio_app(app, demo, path="/dashboard")
+
 if __name__ == "__main__":
-    demo.launch(server_name="0.0.0.0", server_port=7860)
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=7860)

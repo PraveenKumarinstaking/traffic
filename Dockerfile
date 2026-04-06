@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y \
 
 # Copy the requirements file into the container
 # Since we don't have many dependencies, we'll install them directly
-RUN pip install --no-cache-dir pydantic numpy openai gradio
+RUN pip install --no-cache-dir pydantic numpy openai gradio fastapi uvicorn
 
 # Setup a non-root user for Hugging Face Spaces (UID 1000)
 RUN useradd -m -u 1000 user
@@ -30,5 +30,5 @@ EXPOSE 7860
 # Define environment variables
 ENV PYTHONUNBUFFERED=1
 
-# Run the app
-CMD ["python", "server.py"]
+# Run the app with Uvicorn
+CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "7860"]

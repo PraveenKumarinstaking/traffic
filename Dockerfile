@@ -10,8 +10,8 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy the requirements file into the container
-# Since we don't have many dependencies, we'll install them directly
-RUN pip install --no-cache-dir pydantic numpy openai gradio fastapi uvicorn
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Setup a non-root user for Hugging Face Spaces (UID 1000)
 RUN useradd -m -u 1000 user

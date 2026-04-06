@@ -1,0 +1,23 @@
+[project]
+name = "emergency_aware_traffic_control"
+version = "1.0.0"
+description = "Emergency-Aware Traffic Signal Control environment for OpenEnv"
+authors = [
+    {name = "Antigravity Assistant", email = "antigravity@gemini.ai"}
+]
+license = {text = "MIT"}
+dependencies = [
+    "pydantic>=2.0.0",
+    "numpy>=1.20.0",
+    "openai>=1.0.0",
+    "gradio>=6.0.0",
+    "fastapi>=0.100.0",
+    "uvicorn>=0.20.0"
+]
+
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["."]

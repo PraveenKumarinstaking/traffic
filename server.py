@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Body
+from fastapi.responses import RedirectResponse
 import gradio as gr
 import numpy as np
 from env import TrafficEnvironment
@@ -12,6 +13,11 @@ global_env = TrafficEnvironment(seed=42)
 app = FastAPI(title="Emergency-Aware Traffic Signal Control API")
 
 # --- OpenEnv API Endpoints ---
+
+@app.get("/")
+async def root():
+    """Redirects users to the dashboard UI."""
+    return RedirectResponse(url="/dashboard")
 
 @app.post("/reset", response_model=Observation)
 async def reset():

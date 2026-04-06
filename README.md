@@ -1,3 +1,13 @@
+---
+title: Emergency-Aware Traffic Signal Control
+emoji: 🚦
+colorFrom: red
+colorTo: green
+sdk: docker
+app_file: app.py
+pinned: false
+---
+
 # Emergency-Aware Traffic Signal Control Environment
 
 ## Overview

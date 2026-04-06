@@ -100,6 +100,9 @@ with gr.Blocks(theme=gr.themes.Soft()) as demo:
 # Mount at /dashboard to prevent shadowing the API routes at the root
 app = gr.mount_gradio_app(app, demo, path="/dashboard")
 
-if __name__ == "__main__":
+def main():
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=7860)
+    uvicorn.run("server.app:app", host="0.0.0.0", port=7860, reload=False)
+
+if __name__ == "__main__":
+    main()

@@ -31,4 +31,4 @@ EXPOSE 7860
 ENV PYTHONUNBUFFERED=1
 
 # Run the app
-CMD ["python", "app.py"]
+CMD ["python", "server.py"]

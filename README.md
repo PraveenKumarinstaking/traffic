@@ -4,7 +4,7 @@ emoji: 🚦
 colorFrom: red
 colorTo: green
 sdk: docker
-app_file: app.py
+app_file: server.py
 pinned: false
 ---
 

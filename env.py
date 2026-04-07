@@ -13,6 +13,13 @@ class TrafficEnvironment:
         self.yellow_time = 2  # steps
         self.min_green_time = 5 # steps
         
+        # Explicit task registry for discovery
+        self.tasks = [
+            {"id": "congestion_relief", "grader": "grader:grade_congestion_relief"},
+            {"id": "fair_scheduling", "grader": "grader:grade_fair_scheduling"},
+            {"id": "emergency_priority", "grader": "grader:grade_emergency_priority"}
+        ]
+        
         self.reset()
 
     def reset(self, seed: Optional[int] = None):

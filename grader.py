@@ -15,20 +15,39 @@ class Grader:
             return self._grade_task3(episode_history)
         return self._clamp(0.0)
 
+    def _get_val(self, obj, key, default=0):
+        """Robustly gets a value from an object (attribute) or dict (key)."""
+        if hasattr(obj, key):
+            return getattr(obj, key)
+        if hasattr(obj, 'get'): # handles dict-like
+            return obj.get(key, default)
+        return default
+
     def _clamp(self, score: float) -> float:
-        """Clamps score to (0.01, 0.99) interval and handles NaN."""
-        if np.isnan(score):
+        """Clamps score to (0.01, 0.99) interval and handles NaN/None/Inf."""
+        try:
+            if score is None or not isinstance(score, (int, float, np.number)) or np.isnan(score) or np.isinf(score):
+                return 0.5
+            return float(np.clip(score, 0.01, 0.99))
+        except:
             return 0.5
-        return float(np.clip(score, 0.01, 0.99))
 
     def _grade_task1(self, history: list) -> float:
         # Objective: Reduce total queue length.
         if not history:
             return self._clamp(0.5)
             
-        # compare avg queue length to a baseline (~10-15 vehicles)
-        queues = [sum([obs.north_queue, obs.south_queue, obs.east_queue, obs.west_queue]) for obs, act, rew in history]
-        avg_queue = np.mean(queues)
+        queues = []
+        for obs, act, rew in history:
+            total_q = (
+                self._get_val(obs, "north_queue") + 
+                self._get_val(obs, "south_queue") + 
+                self._get_val(obs, "east_queue") + 
+                self._get_val(obs, "west_queue")
+            )
+            queues.append(total_q)
+            
+        avg_queue = np.mean(queues) if queues else 25.0
         
         # if avg_queue is 0, score 0.99. If avg_queue > 25, score 0.01.
         score = 1.0 - (avg_queue / 25.0)
@@ -39,10 +58,14 @@ class Grader:
         if not history:
             return self._clamp(0.5)
             
-        # Measure variance in queue lengths or wait times.
         lane_waits = []
         for obs, act, rew in history:
-            waits = [obs.north_wait, obs.south_wait, obs.east_wait, obs.west_wait]
+            waits = [
+                self._get_val(obs, "north_wait"),
+                self._get_val(obs, "south_wait"),
+                self._get_val(obs, "east_wait"),
+                self._get_val(obs, "west_wait")
+            ]
             lane_waits.append(np.std(waits))
         
         if not lane_waits:
@@ -55,23 +78,27 @@ class Grader:
 
     def _grade_task3(self, history: list) -> float:
         # Objective: Emergency veh prioritization.
-        # Track steps where emergency was active and if it was served.
-        emergencies = []
+        if not history:
+            return self._clamp(0.5)
+
         emergency_durations = []
         current_emerg = False
         start_step = 0
         
         for i, (obs, act, rew) in enumerate(history):
-            if obs.emergency_active and not current_emerg:
+            is_active = self._get_val(obs, "emergency_active", False)
+            if is_active and not current_emerg:
                 current_emerg = True
                 start_step = i
-            elif not obs.emergency_active and current_emerg:
+            elif not is_active and current_emerg:
                 current_emerg = False
                 emergency_durations.append(i - start_step)
         
         if not emergency_durations:
-            # High score for avoiding unnecessary overrides if no emergency
-            return self._clamp(0.95)
+            # If no emergency ended, check if any started and never finished
+            if current_emerg:
+                return self._clamp(0.1) # Penalize for never finishing
+            return self._clamp(0.95) # High score if no emergency occurred
             
         avg_duration = np.mean(emergency_durations)
         # Fast clearing (< 10 steps) -> High score

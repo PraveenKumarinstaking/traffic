@@ -26,3 +26,8 @@ tasks:
     difficulty: "Hard"
     objective: "Detect and prioritize emergency vehicles with minimal delay."
     grader: "grader:grade_emergency_priority"
+  - id: throughput_maximization
+    name: "Task 4 — Throughput Maximization"
+    difficulty: "Medium"
+    objective: "Maximize total vehicles served per step."
+    grader: "grader:grade_throughput_maximization"

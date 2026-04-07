@@ -75,7 +75,8 @@ def main():
     tasks = [
         ("congestion_relief", "Task 1 — Basic Congestion Relief: Reduce total queue length."),
         ("fair_scheduling", "Task 2 — Fair Phase Scheduling: Balance traffic flow."),
-        ("emergency_priority", "Task 3 — Emergency Vehicle Prioritization: Prioritize emergency vehicles.")
+        ("emergency_priority", "Task 3 — Emergency Vehicle Prioritization: Prioritize emergency vehicles."),
+        ("throughput_maximization", "Task 4 — Throughput Maximization: Maximize total vehicles served per step.")
     ]
 
     # Mandatory [START] tag - MUST be first
@@ -83,8 +84,10 @@ def main():
     
     try:
         # Initialize configuration after [START]
-        API_BASE_URL = os.environ["API_BASE_URL"]
-        API_KEY = os.environ["API_KEY"]
+        # WARNING: Hardcoding API keys is not recommended for production.
+        # Use environment variables or secrets management instead.
+        API_BASE_URL = os.environ.get("API_BASE_URL")
+        API_KEY = os.environ.get("API_KEY")
         MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-3.5-turbo")
 
         client = openai.OpenAI(

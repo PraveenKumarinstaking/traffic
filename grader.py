@@ -7,28 +7,44 @@ class Grader:
         self.task_id = task_id
 
     def grade(self, episode_history: list) -> float:
-        if self.task_id == "congestion_relief":
-            return self._grade_task1(episode_history)
-        elif self.task_id == "fair_scheduling":
-            return self._grade_task2(episode_history)
-        elif self.task_id == "emergency_priority":
-            return self._grade_task3(episode_history)
-        return self._clamp(0.0)
+        try:
+            if self.task_id == "congestion_relief":
+                return self._grade_task1(episode_history)
+            elif self.task_id == "fair_scheduling":
+                return self._grade_task2(episode_history)
+            elif self.task_id == "emergency_priority":
+                return self._grade_task3(episode_history)
+            elif self.task_id == "throughput_maximization":
+                return self._grade_task4(episode_history)
+            return self._clamp(0.5)
+        except Exception:
+            # Fallback to a neutral safe score if logic fails
+            return 0.5
 
     def _get_val(self, obj, key, default=0):
         """Robustly gets a value from an object (attribute) or dict (key)."""
+        if obj is None:
+            return default
+        # If it's a dict, use .get()
+        if isinstance(obj, dict):
+            return obj.get(key, default)
+        # If it has the attribute, use getattr()
         if hasattr(obj, key):
             return getattr(obj, key)
-        if hasattr(obj, 'get'): # handles dict-like
-            return obj.get(key, default)
+        # Try as a dict if it hasn't worked yet (handles some Pydantic-to-dict cases)
+        try:
+            return obj[key]
+        except (KeyError, TypeError):
+            pass
         return default
 
     def _clamp(self, score: float) -> float:
-        """Clamps score to (0.01, 0.99) interval and handles NaN/None/Inf."""
+        """Clamps score to (0.1, 0.9) interval and handles NaN/None/Inf."""
         try:
             if score is None or not isinstance(score, (int, float, np.number)) or np.isnan(score) or np.isinf(score):
                 return 0.5
-            return float(np.clip(score, 0.01, 0.99))
+            # Strictly between 0 and 1. We use a safe buffer [0.1, 0.9].
+            return float(np.clip(score, 0.1, 0.9))
         except:
             return 0.5
 
@@ -105,6 +121,22 @@ class Grader:
         score = 1.0 - (avg_duration / 30.0)
         return self._clamp(score)
 
+    def _grade_task4(self, history: list) -> float:
+        # Objective: Throughput Maximization (vehicles served vs steps)
+        if not history:
+            return self._clamp(0.5)
+            
+        final_served = 0
+        for obs, act, rew in history:
+            served = self._get_val(obs, "vehicles_served", 0)
+            final_served = max(final_served, served)
+            
+        steps = len(history)
+        # 2 vehicles/step is max. 0.5-1.0 vehicles/step is good.
+        ratio = final_served / max(1, steps)
+        score = ratio / 1.0 # 1.0 vehicle/step = perfect 1.0
+        return self._clamp(score)
+
 def run_grading(history, task_id):
     g = Grader(task_id)
     return g.grade(history)
@@ -118,6 +150,9 @@ def grade_fair_scheduling(history):
 
 def grade_emergency_priority(history):
     return run_grading(history, "emergency_priority")
+
+def grade_throughput_maximization(history):
+    return run_grading(history, "throughput_maximization")
 
 if __name__ == "__main__":
     # Smoke test

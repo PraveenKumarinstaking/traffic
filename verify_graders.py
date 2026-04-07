@@ -1,5 +1,5 @@
 import numpy as np
-from grader import grade_congestion_relief, grade_fair_scheduling, grade_emergency_priority
+from grader import grade_congestion_relief, grade_fair_scheduling, grade_emergency_priority, grade_throughput_maximization
 from models import Observation, Action, ActionType
 
 def create_mock_obs(q=0, w=0, ea=False):
@@ -31,14 +31,14 @@ def test_grader(name, grader_fn):
     score_bad = grader_fn(mock_hist_bad)
     print(f"  Bad history: {score_bad}")
     assert 0.0 < score_bad < 1.0
-    assert score_bad >= 0.01 # Should be clamped to 0.01
+    assert score_bad >= 0.1 # Should be clamped to 0.1
     
     # 4. Extreme high (Zero congestion)
     mock_hist_perfect = [(create_mock_obs(q=0), Action(action=ActionType.KEEP_PHASE), 1.0) for _ in range(10)]
     score_perfect = grader_fn(mock_hist_perfect)
     print(f"  Perfect history: {score_perfect}")
     assert 0.0 < score_perfect < 1.0
-    assert score_perfect <= 0.99 # Should be clamped to 0.99
+    assert 0.1 <= score_perfect <= 0.9 # Should be clamped to 0.9
     
     # 5. Dictionary-based history (for JSON telemetry compatibility)
     dict_hist = [
@@ -52,6 +52,7 @@ if __name__ == "__main__":
     test_grader("Congestion Relief", grade_congestion_relief)
     test_grader("Fair Scheduling", grade_fair_scheduling)
     test_grader("Emergency Priority", grade_emergency_priority)
+    test_grader("Throughput Maximization", grade_throughput_maximization)
     
     # Special Task 3 case: Emergency active but never cleared
     print("\nTesting Emergency Priority (Active but not cleared)...")

@@ -14,8 +14,6 @@ class Grader:
                 return self._grade_task2(episode_history)
             elif self.task_id == "emergency_priority":
                 return self._grade_task3(episode_history)
-            elif self.task_id == "throughput_maximization":
-                return self._grade_task4(episode_history)
             return self._clamp(0.5)
         except Exception:
             # Fallback to a neutral safe score if logic fails
@@ -60,12 +58,18 @@ class Grader:
         return default
 
     def _clamp(self, score: float) -> float:
-        """Clamps score to (0.1, 0.9) interval and handles NaN/None/Inf."""
+        """Clamps score to (0.12, 0.88) interval and handles NaN/None/Inf."""
         try:
+            # Handle list/array inputs by taking mean if necessary
+            if isinstance(score, (list, np.ndarray)):
+                score = np.mean(score)
+            
             if score is None or not isinstance(score, (int, float, np.number)) or np.isnan(score) or np.isinf(score):
                 return 0.5
-            # Strictly between 0 and 1. We use a safe buffer [0.1, 0.9].
-            return float(np.clip(score, 0.1, 0.9))
+                
+            # Strictly between 0 and 1. We use a safe buffer [0.12, 0.88].
+            # This ensures we are never 0.0 or 1.0 even with rounding.
+            return float(np.clip(float(score), 0.12, 0.88))
         except Exception:
             return 0.5
 
@@ -88,8 +92,8 @@ class Grader:
         if not queues:
             return self._clamp(0.5)
             
-        avg_queue = np.mean(queues)
-        # if avg_queue is 0, score 0.9. If avg_queue > 25, score 0.1.
+        avg_queue = float(np.mean(queues))
+        # if avg_queue is 0, score 0.88. If avg_queue > 25, score 0.12.
         score = 1.0 - (avg_queue / 25.0)
         return self._clamp(score)
 
@@ -112,7 +116,7 @@ class Grader:
         if not lane_waits:
             return self._clamp(0.5)
             
-        avg_std = np.mean(lane_waits)
+        avg_std = float(np.mean(lane_waits))
         # Low std -> High score
         score = 1.0 - (avg_std / 50.0)
         return self._clamp(score)
@@ -139,33 +143,12 @@ class Grader:
         if not emergency_durations:
             # If no emergency ended, check if any started and never finished
             if current_emerg:
-                return self._clamp(0.1) # Penalize for never finishing
-            return self._clamp(0.9) # Safe high score
+                return self._clamp(0.15) # Penalize for never finishing
+            return self._clamp(0.85) # Safe high score
             
-        avg_duration = np.mean(emergency_durations)
+        avg_duration = float(np.mean(emergency_durations))
         # Fast clearing (< 10 steps) -> High score
         score = 1.0 - (avg_duration / 30.0)
-        return self._clamp(score)
-
-    def _grade_task4(self, history: list) -> float:
-        # Objective: Throughput Maximization (vehicles served vs steps)
-        clean_history = self._unpack_history(history)
-        if not clean_history:
-            return self._clamp(0.5)
-            
-        final_served = 0
-        for obs, act, rew in clean_history:
-            served = self._get_val(obs, "vehicles_served", 0)
-            if isinstance(served, (int, float)):
-                final_served = max(final_served, served)
-            
-        steps = len(clean_history)
-        if steps == 0:
-            return self._clamp(0.5)
-            
-        # 2 vehicles/step is max. 0.5-1.0 vehicles/step is good.
-        ratio = final_served / float(steps)
-        score = ratio / 1.0 # 1.0 vehicle/step = perfect 1.0
         return self._clamp(score)
 
 def run_grading(history, task_id):
@@ -181,9 +164,6 @@ def grade_fair_scheduling(history):
 
 def grade_emergency_priority(history):
     return run_grading(history, "emergency_priority")
-
-def grade_throughput_maximization(history):
-    return run_grading(history, "throughput_maximization")
 
 if __name__ == "__main__":
     # Smoke test

@@ -7,31 +7,56 @@ from models import Action, ActionType, Observation
 from grader import run_grading
 import openai
 
-# --- Configuration & Strict Validation ---
-API_BASE_URL = os.getenv("API_BASE_URL", "https://api.openai.com/v1")
-MODEL_NAME = os.getenv("MODEL_NAME", "gpt-3.5-turbo")
-HF_TOKEN = os.getenv("HF_TOKEN", "")
-
-# Strict compliance check: Fail if token is missing
-if not HF_TOKEN:
-    print("[ERROR] HF_TOKEN environment variable is missing. This is required for submission.")
-    # In some evaluation systems, we might need a non-zero exit code or specific stdout
-    # Raising an error is the safest way to signal failure
-    # sys.exit(1) # We can use exit or raise
-    # raise ValueError("HF_TOKEN secret is required for evaluation.")
-
-client = openai.OpenAI(api_key=HF_TOKEN, base_url=API_BASE_URL)
+# --- Configuration ---
+# Variables will be initialized in main() to ensure [START] is printed first
+API_BASE_URL = None
+API_KEY = None
+MODEL_NAME = None
+client = None
 
 def get_agent_action(obs: Observation, task_description: str) -> Action:
     """
-    Calls the LLM to decide the next action.
+    Calls the LLM to decide the next action based on the state.
     """
-    # Simple heuristic policy for baseline:
-    # This keeps the environment deterministic and predictable for initial verification
+    prompt = f"""
+    Task: {task_description}
+    Current Observation:
+    - Queues (N/S/E/W): {obs.north_queue}/{obs.south_queue}/{obs.east_queue}/{obs.west_queue}
+    - Current Phase: {obs.current_phase}
+    - Phase Duration: {obs.phase_duration}
+    - Emergency Active: {obs.emergency_active}
+    - Emergency Lane: {obs.emergency_lane}
+    
+    Available Actions: {', '.join([a.value for a in ActionType])}
+    
+    Respond ONLY with the name of the ActionType that should be taken.
+    """
+    
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=[
+                {"role": "system", "content": "You are a traffic controller LLM. Output only the ActionType."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=20,
+            temperature=0
+        )
+        action_text = response.choices[0].message.content.strip()
+        
+        # Validating output against ActionType enum
+        for action_type in ActionType:
+            if action_type.value in action_text:
+                return Action(action=action_type)
+        
+        print(f"[WARNING] Invalid LLM response: '{action_text}'. Falling back to heuristic.")
+    except Exception as e:
+        print(f"[ERROR] LLM API call failed: {e}. Falling back to heuristic.")
+
+    # --- Heuristic Fallback (Original Logic) ---
     if obs.emergency_active:
         return Action(action=ActionType.EMERGENCY_OVERRIDE)
     
-    # Switch if queue is large on the other phase
     ns_queue = obs.north_queue + obs.south_queue
     ew_queue = obs.east_queue + obs.west_queue
     
@@ -45,16 +70,28 @@ def get_agent_action(obs: Observation, task_description: str) -> Action:
         return Action(action=ActionType.KEEP_PHASE)
 
 def main():
+    global API_BASE_URL, API_KEY, MODEL_NAME, client
+    
     tasks = [
         ("congestion_relief", "Task 1 — Basic Congestion Relief: Reduce total queue length."),
         ("fair_scheduling", "Task 2 — Fair Phase Scheduling: Balance traffic flow."),
         ("emergency_priority", "Task 3 — Emergency Vehicle Prioritization: Prioritize emergency vehicles.")
     ]
 
-    # Mandatory [START] tag
+    # Mandatory [START] tag - MUST be first
     print("[START]")
     
     try:
+        # Initialize configuration after [START]
+        API_BASE_URL = os.environ["API_BASE_URL"]
+        API_KEY = os.environ["API_KEY"]
+        MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-3.5-turbo")
+
+        client = openai.OpenAI(
+            base_url=API_BASE_URL,
+            api_key=API_KEY
+        )
+
         all_scores = {}
 
         for task_id, task_desc in tasks:

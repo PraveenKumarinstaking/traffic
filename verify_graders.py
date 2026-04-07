@@ -46,7 +46,15 @@ def test_grader(name, grader_fn):
     ]
     score_dict = grader_fn(dict_hist)
     print(f"  Dictionary history: {score_dict}")
-    assert 0.0 < score_dict < 1.0
+    assert 0.1 <= score_dict <= 0.9
+
+    # 6. 4-tuple history (obs, act, rew, info)
+    tuple4_hist = [
+        (create_mock_obs(q=2), Action(action=ActionType.KEEP_PHASE), 0.1, {"info": "extra"})
+    ]
+    score_tuple4 = grader_fn(tuple4_hist)
+    print(f"  4-tuple history: {score_tuple4}")
+    assert 0.1 <= score_tuple4 <= 0.9
 
 if __name__ == "__main__":
     test_grader("Congestion Relief", grade_congestion_relief)

@@ -21,6 +21,26 @@ class Grader:
             # Fallback to a neutral safe score if logic fails
             return 0.5
 
+    def _unpack_history(self, history: list) -> list:
+        """Robustly extracts (obs, act, rew) from history items of any format."""
+        unpacked = []
+        for item in history:
+            try:
+                if isinstance(item, (list, tuple)):
+                    # Handle (obs, act, rew, ...) - any length >= 3
+                    if len(item) >= 3:
+                        unpacked.append((item[0], item[1], item[2]))
+                elif isinstance(item, dict):
+                    # Handle dictionary format
+                    obs = item.get("observation") or item.get("obs")
+                    act = item.get("action") or item.get("act")
+                    rew = item.get("reward") or item.get("rew")
+                    if obs is not None:
+                        unpacked.append((obs, act, rew))
+            except Exception:
+                continue
+        return unpacked
+
     def _get_val(self, obj, key, default=0):
         """Robustly gets a value from an object (attribute) or dict (key)."""
         if obj is None:
@@ -30,7 +50,8 @@ class Grader:
             return obj.get(key, default)
         # If it has the attribute, use getattr()
         if hasattr(obj, key):
-            return getattr(obj, key)
+            val = getattr(obj, key)
+            return val() if callable(val) else val
         # Try as a dict if it hasn't worked yet (handles some Pydantic-to-dict cases)
         try:
             return obj[key]
@@ -45,42 +66,46 @@ class Grader:
                 return 0.5
             # Strictly between 0 and 1. We use a safe buffer [0.1, 0.9].
             return float(np.clip(score, 0.1, 0.9))
-        except:
+        except Exception:
             return 0.5
 
     def _grade_task1(self, history: list) -> float:
         # Objective: Reduce total queue length.
-        if not history:
+        clean_history = self._unpack_history(history)
+        if not clean_history:
             return self._clamp(0.5)
             
         queues = []
-        for obs, act, rew in history:
+        for obs, act, rew in clean_history:
             total_q = (
-                self._get_val(obs, "north_queue") + 
-                self._get_val(obs, "south_queue") + 
-                self._get_val(obs, "east_queue") + 
-                self._get_val(obs, "west_queue")
+                self._get_val(obs, "north_queue", 0) + 
+                self._get_val(obs, "south_queue", 0) + 
+                self._get_val(obs, "east_queue", 0) + 
+                self._get_val(obs, "west_queue", 0)
             )
             queues.append(total_q)
             
-        avg_queue = np.mean(queues) if queues else 25.0
-        
-        # if avg_queue is 0, score 0.99. If avg_queue > 25, score 0.01.
+        if not queues:
+            return self._clamp(0.5)
+            
+        avg_queue = np.mean(queues)
+        # if avg_queue is 0, score 0.9. If avg_queue > 25, score 0.1.
         score = 1.0 - (avg_queue / 25.0)
         return self._clamp(score)
 
     def _grade_task2(self, history: list) -> float:
         # Objective: Balance traffic flow / Fairness.
-        if not history:
+        clean_history = self._unpack_history(history)
+        if not clean_history:
             return self._clamp(0.5)
             
         lane_waits = []
-        for obs, act, rew in history:
+        for obs, act, rew in clean_history:
             waits = [
-                self._get_val(obs, "north_wait"),
-                self._get_val(obs, "south_wait"),
-                self._get_val(obs, "east_wait"),
-                self._get_val(obs, "west_wait")
+                self._get_val(obs, "north_wait", 0),
+                self._get_val(obs, "south_wait", 0),
+                self._get_val(obs, "east_wait", 0),
+                self._get_val(obs, "west_wait", 0)
             ]
             lane_waits.append(np.std(waits))
         
@@ -94,14 +119,15 @@ class Grader:
 
     def _grade_task3(self, history: list) -> float:
         # Objective: Emergency veh prioritization.
-        if not history:
+        clean_history = self._unpack_history(history)
+        if not clean_history:
             return self._clamp(0.5)
 
         emergency_durations = []
         current_emerg = False
         start_step = 0
         
-        for i, (obs, act, rew) in enumerate(history):
+        for i, (obs, act, rew) in enumerate(clean_history):
             is_active = self._get_val(obs, "emergency_active", False)
             if is_active and not current_emerg:
                 current_emerg = True
@@ -114,7 +140,7 @@ class Grader:
             # If no emergency ended, check if any started and never finished
             if current_emerg:
                 return self._clamp(0.1) # Penalize for never finishing
-            return self._clamp(0.95) # High score if no emergency occurred
+            return self._clamp(0.9) # Safe high score
             
         avg_duration = np.mean(emergency_durations)
         # Fast clearing (< 10 steps) -> High score
@@ -123,17 +149,22 @@ class Grader:
 
     def _grade_task4(self, history: list) -> float:
         # Objective: Throughput Maximization (vehicles served vs steps)
-        if not history:
+        clean_history = self._unpack_history(history)
+        if not clean_history:
             return self._clamp(0.5)
             
         final_served = 0
-        for obs, act, rew in history:
+        for obs, act, rew in clean_history:
             served = self._get_val(obs, "vehicles_served", 0)
-            final_served = max(final_served, served)
+            if isinstance(served, (int, float)):
+                final_served = max(final_served, served)
             
-        steps = len(history)
+        steps = len(clean_history)
+        if steps == 0:
+            return self._clamp(0.5)
+            
         # 2 vehicles/step is max. 0.5-1.0 vehicles/step is good.
-        ratio = final_served / max(1, steps)
+        ratio = final_served / float(steps)
         score = ratio / 1.0 # 1.0 vehicle/step = perfect 1.0
         return self._clamp(score)
 

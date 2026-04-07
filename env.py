@@ -4,6 +4,13 @@ from typing import Dict, List, Tuple, Optional
 from models import Observation, Action, ActionType, TrafficPhase, Reward
 
 class TrafficEnvironment:
+    TASKS = [
+        {"id": "congestion_relief", "name": "Task 1 — Basic Congestion Relief", "grader": "grader:grade_congestion_relief"},
+        {"id": "fair_scheduling", "name": "Task 2 — Fair Phase Scheduling", "grader": "grader:grade_fair_scheduling"},
+        {"id": "emergency_priority", "name": "Task 3 — Emergency Vehicle Prioritization", "grader": "grader:grade_emergency_priority"},
+        {"id": "throughput_maximization", "name": "Task 4 — Throughput Maximization", "grader": "grader:grade_throughput_maximization"}
+    ]
+
     def __init__(self, seed: Optional[int] = None):
         if seed is not None:
             random.seed(seed)

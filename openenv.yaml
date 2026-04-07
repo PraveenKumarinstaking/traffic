@@ -1,4 +1,4 @@
-name: emergency_traffic_control
+name: emergency_aware_traffic_control
 version: "1.0.0"
 description: "A real-world emergency-aware traffic signal control environment. Manage a 4-way intersection to minimize congestion and prioritize emergency vehicles."
 author: "Antigravity Assistant"

@@ -5,9 +5,10 @@ from models import Observation, Action, ActionType, TrafficPhase, Reward
 
 class TrafficEnvironment:
     TASKS = [
-        {"id": "congestion_relief", "name": "Task 1 — Basic Congestion Relief", "grader": "grader:grade_congestion_relief"},
-        {"id": "fair_scheduling", "name": "Task 2 — Fair Phase Scheduling", "grader": "grader:grade_fair_scheduling"},
-        {"id": "emergency_priority", "name": "Task 3 — Emergency Vehicle Prioritization", "grader": "grader:grade_emergency_priority"}
+        {"id": "congestion_relief", "name": "Task 1 - Basic Congestion Relief", "grader": "grader:grade_congestion_relief"},
+        {"id": "fair_scheduling", "name": "Task 2 - Fair Phase Scheduling", "grader": "grader:grade_fair_scheduling"},
+        {"id": "emergency_priority", "name": "Task 3 - Emergency Vehicle Prioritization", "grader": "grader:grade_emergency_priority"},
+        {"id": "throughput_maximization", "name": "Task 4 - Throughput Maximization", "grader": "grader:grade_throughput_maximization"}
     ]
 
     def __init__(self, seed: Optional[int] = None):
@@ -21,9 +22,10 @@ class TrafficEnvironment:
         
         # Consistent task registry for discovery
         self.tasks = [
-            {"id": "congestion_relief", "name": "Task 1 — Basic Congestion Relief", "grader": "grader:grade_congestion_relief"},
-            {"id": "fair_scheduling", "name": "Task 2 — Fair Phase Scheduling", "grader": "grader:grade_fair_scheduling"},
-            {"id": "emergency_priority", "name": "Task 3 — Emergency Vehicle Prioritization", "grader": "grader:grade_emergency_priority"}
+            {"id": "congestion_relief", "name": "Task 1 - Basic Congestion Relief", "grader": "grader:grade_congestion_relief"},
+            {"id": "fair_scheduling", "name": "Task 2 - Fair Phase Scheduling", "grader": "grader:grade_fair_scheduling"},
+            {"id": "emergency_priority", "name": "Task 3 - Emergency Vehicle Prioritization", "grader": "grader:grade_emergency_priority"},
+            {"id": "throughput_maximization", "name": "Task 4 - Throughput Maximization", "grader": "grader:grade_throughput_maximization"}
         ]
         
         self.reset()
@@ -32,9 +34,10 @@ class TrafficEnvironment:
     def get_tasks(cls) -> List[Dict]:
         """Returns the list of available tasks for this environment."""
         return [
-            {"id": "congestion_relief", "name": "Task 1 — Basic Congestion Relief", "grader": "grader:grade_congestion_relief"},
-            {"id": "fair_scheduling", "name": "Task 2 — Fair Phase Scheduling", "grader": "grader:grade_fair_scheduling"},
-            {"id": "emergency_priority", "name": "Task 3 — Emergency Vehicle Prioritization", "grader": "grader:grade_emergency_priority"}
+            {"id": "congestion_relief", "name": "Task 1 - Basic Congestion Relief", "grader": "grader:grade_congestion_relief"},
+            {"id": "fair_scheduling", "name": "Task 2 - Fair Phase Scheduling", "grader": "grader:grade_fair_scheduling"},
+            {"id": "emergency_priority", "name": "Task 3 - Emergency Vehicle Prioritization", "grader": "grader:grade_emergency_priority"},
+            {"id": "throughput_maximization", "name": "Task 4 - Throughput Maximization", "grader": "grader:grade_throughput_maximization"}
         ]
 
     def reset(self, seed: Optional[int] = None):

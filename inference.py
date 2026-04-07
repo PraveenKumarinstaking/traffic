@@ -73,9 +73,10 @@ def main():
     global API_BASE_URL, API_KEY, MODEL_NAME, client
     
     tasks = [
-        ("congestion_relief", "Task 1 — Basic Congestion Relief: Reduce total queue length."),
-        ("fair_scheduling", "Task 2 — Fair Phase Scheduling: Balance traffic flow."),
-        ("emergency_priority", "Task 3 — Emergency Vehicle Prioritization: Prioritize emergency vehicles.")
+        ("congestion_relief", "Task 1 - Basic Congestion Relief: Reduce total queue length."),
+        ("fair_scheduling", "Task 2 - Fair Phase Scheduling: Balance traffic flow."),
+        ("emergency_priority", "Task 3 - Emergency Vehicle Prioritization: Prioritize emergency vehicles."),
+        ("throughput_maximization", "Task 4 - Throughput Maximization: Maximize total vehicles served per step.")
     ]
 
     # Mandatory [START] tag - MUST be first

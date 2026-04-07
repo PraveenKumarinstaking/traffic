@@ -1,5 +1,4 @@
 import numpy as np
-from env import TrafficEnvironment
 from models import Action, ActionType
 
 class Grader:
@@ -8,12 +7,17 @@ class Grader:
 
     def grade(self, episode_history: list) -> float:
         try:
+            if not isinstance(episode_history, (list, tuple)):
+                return 0.5
+                
             if self.task_id == "congestion_relief":
                 return self._grade_task1(episode_history)
             elif self.task_id == "fair_scheduling":
                 return self._grade_task2(episode_history)
             elif self.task_id == "emergency_priority":
                 return self._grade_task3(episode_history)
+            elif self.task_id == "throughput_maximization":
+                return self._grade_task4(episode_history)
             return self._clamp(0.5)
         except Exception:
             # Fallback to a neutral safe score if logic fails
@@ -22,6 +26,9 @@ class Grader:
     def _unpack_history(self, history: list) -> list:
         """Robustly extracts (obs, act, rew) from history items of any format."""
         unpacked = []
+        if not hasattr(history, "__iter__"):
+            return unpacked
+            
         for item in history:
             try:
                 if isinstance(item, (list, tuple)):
@@ -30,7 +37,7 @@ class Grader:
                         unpacked.append((item[0], item[1], item[2]))
                 elif isinstance(item, dict):
                     # Handle dictionary format
-                    obs = item.get("observation") or item.get("obs")
+                    obs = item.get("observation") or item.get("obs") or item.get("state")
                     act = item.get("action") or item.get("act")
                     rew = item.get("reward") or item.get("rew")
                     if obs is not None:
@@ -58,7 +65,7 @@ class Grader:
         return default
 
     def _clamp(self, score: float) -> float:
-        """Clamps score to (0.12, 0.88) interval and handles NaN/None/Inf."""
+        """Clamps score to (0.2, 0.8) interval and handles NaN/None/Inf."""
         try:
             # Handle list/array inputs by taking mean if necessary
             if isinstance(score, (list, np.ndarray)):
@@ -67,9 +74,10 @@ class Grader:
             if score is None or not isinstance(score, (int, float, np.number)) or np.isnan(score) or np.isinf(score):
                 return 0.5
                 
-            # Strictly between 0 and 1. We use a safe buffer [0.12, 0.88].
+            # Strictly between 0 and 1. We use a safe buffer [0.2, 0.8].
             # This ensures we are never 0.0 or 1.0 even with rounding.
-            return float(np.clip(float(score), 0.12, 0.88))
+            # Convert to standard Python float for validator compatibility.
+            return float(np.clip(float(score), 0.2, 0.8))
         except Exception:
             return 0.5
 
@@ -93,7 +101,7 @@ class Grader:
             return self._clamp(0.5)
             
         avg_queue = float(np.mean(queues))
-        # if avg_queue is 0, score 0.88. If avg_queue > 25, score 0.12.
+        # if avg_queue is 0, score 0.8. If avg_queue > 25, score 0.2.
         score = 1.0 - (avg_queue / 25.0)
         return self._clamp(score)
 
@@ -143,12 +151,31 @@ class Grader:
         if not emergency_durations:
             # If no emergency ended, check if any started and never finished
             if current_emerg:
-                return self._clamp(0.15) # Penalize for never finishing
-            return self._clamp(0.85) # Safe high score
+                return self._clamp(0.25) # Penalize for never finishing
+            return self._clamp(0.75) # Safe high score
             
         avg_duration = float(np.mean(emergency_durations))
         # Fast clearing (< 10 steps) -> High score
         score = 1.0 - (avg_duration / 30.0)
+        return self._clamp(score)
+
+    def _grade_task4(self, history: list) -> float:
+        # Objective: Throughput Maximization.
+        clean_history = self._unpack_history(history)
+        if not clean_history:
+            return self._clamp(0.5)
+            
+        final_served = 0
+        for obs, act, rew in clean_history:
+            served = self._get_val(obs, "vehicles_served", 0)
+            final_served = max(final_served, served)
+            
+        steps = len(clean_history)
+        if steps == 0: return self._clamp(0.5)
+        
+        ratio = final_served / float(steps)
+        # 0.5 vehicles/step is a decent baseline for 0.5 score
+        score = ratio / 1.0 
         return self._clamp(score)
 
 def run_grading(history, task_id):
@@ -165,7 +192,11 @@ def grade_fair_scheduling(history):
 def grade_emergency_priority(history):
     return run_grading(history, "emergency_priority")
 
+def grade_throughput_maximization(history):
+    return run_grading(history, "throughput_maximization")
+
 if __name__ == "__main__":
+    from env import TrafficEnvironment # Local import to avoid circular top-level
     # Smoke test
     env = TrafficEnvironment(seed=42)
     obs = env.reset()
@@ -181,6 +212,7 @@ if __name__ == "__main__":
     print(f"Task 1 Score: {grade_congestion_relief(history)}")
     print(f"Task 2 Score: {grade_fair_scheduling(history)}")
     print(f"Task 3 Score: {grade_emergency_priority(history)}")
+    print(f"Task 4 Score: {grade_throughput_maximization(history)}")
     
     # Empty history test
     print(f"Empty Score: {grade_congestion_relief([])}")

@@ -15,19 +15,19 @@ tasks:
     name: "Task 1 - Basic Congestion Relief"
     difficulty: "Easy"
     objective: "Reduce total queue length over a short horizon."
-    grader: "grader:grade_congestion_relief"
+    verifier: "grader:grade_congestion_relief"
   - id: fair_scheduling
     name: "Task 2 - Fair Phase Scheduling"
     difficulty: "Medium"
     objective: "Balance traffic flow across all four directions without starvation."
-    grader: "grader:grade_fair_scheduling"
+    verifier: "grader:grade_fair_scheduling"
   - id: emergency_priority
     name: "Task 3 - Emergency Vehicle Prioritization"
     difficulty: "Hard"
     objective: "Detect and prioritize emergency vehicles with minimal delay."
-    grader: "grader:grade_emergency_priority"
+    verifier: "grader:grade_emergency_priority"
   - id: throughput_maximization
     name: "Task 4 - Throughput Maximization"
     difficulty: "Medium"
     objective: "Maximize total vehicles served per step."
-    grader: "grader:grade_throughput_maximization"
+    verifier: "grader:grade_throughput_maximization"

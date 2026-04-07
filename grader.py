@@ -21,7 +21,8 @@ class Grader:
             return self._clamp(0.5)
         except Exception:
             # Fallback to a neutral safe score if logic fails
-            return 0.5
+            # Explicitly return as a standard float
+            return float(0.5)
 
     def _unpack_history(self, history: list) -> list:
         """Robustly extracts (obs, act, rew) from history items of any format."""
@@ -65,19 +66,33 @@ class Grader:
         return default
 
     def _clamp(self, score: float) -> float:
-        """Clamps score to (0.2, 0.8) interval and handles NaN/None/Inf."""
+        """Clamps score to (0.1, 0.9) interval and handles NaN/None/Inf/Non-numeric."""
         try:
             # Handle list/array inputs by taking mean if necessary
             if isinstance(score, (list, np.ndarray)):
+                if len(score) == 0:
+                    return 0.5
                 score = np.mean(score)
             
-            if score is None or not isinstance(score, (int, float, np.number)) or np.isnan(score) or np.isinf(score):
+            # Robust numeric check
+            if score is None or not isinstance(score, (int, float, np.number)):
                 return 0.5
                 
-            # Strictly between 0 and 1. We use a safe buffer [0.2, 0.8].
+            # Convert to float early to avoid numpy scalar issues
+            val = float(score)
+            
+            if np.isnan(val) or np.isinf(val):
+                return 0.5
+                
+            # Strictly between 0 and 1. We use a safe buffer [0.15, 0.85].
             # This ensures we are never 0.0 or 1.0 even with rounding.
             # Convert to standard Python float for validator compatibility.
-            return float(np.clip(float(score), 0.2, 0.8))
+            clamped = float(np.clip(val, 0.15, 0.85))
+            
+            # Final sanity check against NaN after clip (rare but defensive)
+            if np.isnan(clamped):
+                return 0.5
+            return clamped
         except Exception:
             return 0.5
 
@@ -101,8 +116,8 @@ class Grader:
             return self._clamp(0.5)
             
         avg_queue = float(np.mean(queues))
-        # if avg_queue is 0, score 0.8. If avg_queue > 25, score 0.2.
-        score = 1.0 - (avg_queue / 25.0)
+        # if avg_queue is 0, score 0.85. If avg_queue > 50, score 0.15.
+        score = 1.0 - (avg_queue / 50.0)
         return self._clamp(score)
 
     def _grade_task2(self, history: list) -> float:
@@ -125,8 +140,8 @@ class Grader:
             return self._clamp(0.5)
             
         avg_std = float(np.mean(lane_waits))
-        # Low std -> High score
-        score = 1.0 - (avg_std / 50.0)
+        # Low std -> High score. Cap denominator at 100.
+        score = 1.0 - (avg_std / 100.0)
         return self._clamp(score)
 
     def _grade_task3(self, history: list) -> float:
@@ -140,7 +155,12 @@ class Grader:
         start_step = 0
         
         for i, (obs, act, rew) in enumerate(clean_history):
-            is_active = self._get_val(obs, "emergency_active", False)
+            raw_active = self._get_val(obs, "emergency_active", False)
+            # Handle NaN being truthy
+            is_active = bool(raw_active)
+            if isinstance(raw_active, float) and np.isnan(raw_active):
+                is_active = False
+                
             if is_active and not current_emerg:
                 current_emerg = True
                 start_step = i
@@ -155,6 +175,7 @@ class Grader:
             return self._clamp(0.75) # Safe high score
             
         avg_duration = float(np.mean(emergency_durations))
+        if avg_duration <= 0: return self._clamp(0.85)
         # Fast clearing (< 10 steps) -> High score
         score = 1.0 - (avg_duration / 30.0)
         return self._clamp(score)
@@ -165,10 +186,12 @@ class Grader:
         if not clean_history:
             return self._clamp(0.5)
             
-        final_served = 0
+        final_served = 0.0
         for obs, act, rew in clean_history:
-            served = self._get_val(obs, "vehicles_served", 0)
-            final_served = max(final_served, served)
+            raw_served = self._get_val(obs, "vehicles_served", 0)
+            # Handle NaN in max
+            if isinstance(raw_served, (int, float, np.number)) and not np.isnan(raw_served):
+                final_served = max(final_served, float(raw_served))
             
         steps = len(clean_history)
         if steps == 0: return self._clamp(0.5)

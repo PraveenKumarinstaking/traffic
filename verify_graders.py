@@ -30,13 +30,13 @@ def test_grader(name, grader_fn):
     mock_hist_bad = [(create_mock_obs(q=100), Action(action=ActionType.KEEP_PHASE), -10.0) for _ in range(10)]
     score_bad = grader_fn(mock_hist_bad)
     print(f"  Bad history: {score_bad}")
-    assert 0.2 <= score_bad <= 0.8
+    assert 0.15 <= score_bad <= 0.85
     
     # 4. Extreme high (Zero congestion)
     mock_hist_perfect = [(create_mock_obs(q=0), Action(action=ActionType.KEEP_PHASE), 1.0) for _ in range(10)]
     score_perfect = grader_fn(mock_hist_perfect)
     print(f"  Perfect history: {score_perfect}")
-    assert 0.2 <= score_perfect <= 0.8
+    assert 0.15 <= score_perfect <= 0.85
     
     # 5. Dictionary-based history (for JSON telemetry compatibility)
     dict_hist = [
@@ -44,12 +44,24 @@ def test_grader(name, grader_fn):
     ]
     score_dict = grader_fn(dict_hist)
     print(f"  Dictionary history: {score_dict}")
-    assert 0.2 <= score_dict <= 0.8
+    assert 0.15 <= score_dict <= 0.85
 
     # 6. Non-list history robustness
     score_nonlist = grader_fn("invalid_history")
     print(f"  Non-list history: {score_nonlist}")
     assert score_nonlist == 0.5
+
+    # 7. NaN input robustness (NaN in observation dictionary)
+    nan_dict_hist = [
+        ({"observation": {
+            "north_queue": np.nan, "south_queue": np.nan, 
+            "north_wait": np.nan, "south_wait": np.nan,
+            "vehicles_served": np.nan, "emergency_active": np.nan
+        }, "action": Action(action=ActionType.KEEP_PHASE), "reward": 0.0} )
+    ]
+    score_nan = grader_fn(nan_dict_hist)
+    print(f"  NaN input history: {score_nan}")
+    assert 0.0 < score_nan < 1.0
 
 if __name__ == "__main__":
     from grader import grade_congestion_relief, grade_fair_scheduling, grade_emergency_priority, grade_throughput_maximization
@@ -64,6 +76,6 @@ if __name__ == "__main__":
     hist_active = [(create_mock_obs(ea=True), Action(action=ActionType.KEEP_PHASE), 0.0) for _ in range(10)]
     score_active = grade_emergency_priority(hist_active)
     print(f"  Active but not cleared: {score_active}")
-    assert 0.2 <= score_active <= 0.8
+    assert 0.15 <= score_active <= 0.85
     
     print("\nALL TESTS PASSED!")

@@ -16,11 +16,16 @@ class Grader:
         return self._clamp(0.0)
 
     def _clamp(self, score: float) -> float:
-        """Clamps score to (0.01, 0.99) interval."""
+        """Clamps score to (0.01, 0.99) interval and handles NaN."""
+        if np.isnan(score):
+            return 0.5
         return float(np.clip(score, 0.01, 0.99))
 
     def _grade_task1(self, history: list) -> float:
         # Objective: Reduce total queue length.
+        if not history:
+            return self._clamp(0.5)
+            
         # compare avg queue length to a baseline (~10-15 vehicles)
         queues = [sum([obs.north_queue, obs.south_queue, obs.east_queue, obs.west_queue]) for obs, act, rew in history]
         avg_queue = np.mean(queues)
@@ -31,12 +36,18 @@ class Grader:
 
     def _grade_task2(self, history: list) -> float:
         # Objective: Balance traffic flow / Fairness.
+        if not history:
+            return self._clamp(0.5)
+            
         # Measure variance in queue lengths or wait times.
         lane_waits = []
         for obs, act, rew in history:
             waits = [obs.north_wait, obs.south_wait, obs.east_wait, obs.west_wait]
             lane_waits.append(np.std(waits))
         
+        if not lane_waits:
+            return self._clamp(0.5)
+            
         avg_std = np.mean(lane_waits)
         # Low std -> High score
         score = 1.0 - (avg_std / 50.0)
@@ -71,6 +82,16 @@ def run_grading(history, task_id):
     g = Grader(task_id)
     return g.grade(history)
 
+# Task-specific entry points for compatibility
+def grade_congestion_relief(history):
+    return run_grading(history, "congestion_relief")
+
+def grade_fair_scheduling(history):
+    return run_grading(history, "fair_scheduling")
+
+def grade_emergency_priority(history):
+    return run_grading(history, "emergency_priority")
+
 if __name__ == "__main__":
     # Smoke test
     env = TrafficEnvironment(seed=42)
@@ -84,6 +105,9 @@ if __name__ == "__main__":
         obs = next_obs
         if done: break
         
-    print(f"Task 1 Score: {run_grading(history, 'congestion_relief')}")
-    print(f"Task 2 Score: {run_grading(history, 'fair_scheduling')}")
-    print(f"Task 3 Score: {run_grading(history, 'emergency_priority')}")
+    print(f"Task 1 Score: {grade_congestion_relief(history)}")
+    print(f"Task 2 Score: {grade_fair_scheduling(history)}")
+    print(f"Task 3 Score: {grade_emergency_priority(history)}")
+    
+    # Empty history test
+    print(f"Empty Score: {grade_congestion_relief([])}")

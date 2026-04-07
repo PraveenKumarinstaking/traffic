@@ -15,11 +15,14 @@ tasks:
     name: "Task 1 — Basic Congestion Relief"
     difficulty: "Easy"
     objective: "Reduce total queue length over a short horizon."
+    grader: "grader:run_grading"
   - id: fair_scheduling
     name: "Task 2 — Fair Phase Scheduling"
     difficulty: "Medium"
     objective: "Balance traffic flow across all four directions without starvation."
+    grader: "grader:run_grading"
   - id: emergency_priority
     name: "Task 3 — Emergency Vehicle Prioritization"
     difficulty: "Hard"
     objective: "Detect and prioritize emergency vehicles with minimal delay."
+    grader: "grader:run_grading"

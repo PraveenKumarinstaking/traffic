@@ -32,28 +32,32 @@ def get_agent_action(obs: Observation, task_description: str) -> Action:
     Respond ONLY with the name of the ActionType that should be taken.
     """
     
-    try:
-        response = client.chat.completions.create(
-            model=MODEL_NAME,
-            messages=[
-                {"role": "system", "content": "You are a traffic controller LLM. Output only the ActionType."},
-                {"role": "user", "content": prompt}
-            ],
-            max_tokens=20,
-            temperature=0
-        )
-        action_text = response.choices[0].message.content.strip()
-        
-        # Validating output against ActionType enum
-        for action_type in ActionType:
-            if action_type.value in action_text:
-                return Action(action=action_type)
-        
-        print(f"[WARNING] Invalid LLM response: '{action_text}'. Falling back to heuristic.")
-    except Exception as e:
-        print(f"[ERROR] LLM API call failed: {e}. Falling back to heuristic.")
+    if client is None:
+        print("[ERROR] LLM client is not initialized. Falling back to heuristic.")
+    else:
+        try:
+            response = client.chat.completions.create(
+                model=MODEL_NAME,
+                messages=[
+                    {"role": "system", "content": "You are a traffic controller LLM. Output only the ActionType."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=20,
+                temperature=0
+            )
+            action_text = response.choices[0].message.content.strip()
+            
+            # Validating output against ActionType enum
+            for action_type in ActionType:
+                if action_type.value in action_text:
+                    return Action(action=action_type)
+            
+            print(f"[WARNING] Invalid LLM response: '{action_text}'. Falling back to heuristic.")
+        except Exception as e:
+            print(f"[ERROR] LLM API call failed: {e}. Falling back to heuristic.")
 
-    # --- Heuristic Fallback (Original Logic) ---
+    # --- Heuristic Fallback (Backup Logic) ---
+    print(f"[DEBUG] Using heuristic fallback for {obs.current_phase}")
     if obs.emergency_active:
         return Action(action=ActionType.EMERGENCY_OVERRIDE)
     
@@ -86,10 +90,11 @@ def main():
         # Initialize configuration after [START]
         # WARNING: Hardcoding API keys is not recommended for production.
         # Use environment variables or secrets management instead.
-        API_BASE_URL = os.environ.get("API_BASE_URL")
-        API_KEY = os.environ.get("API_KEY")
+        API_BASE_URL = os.environ["API_BASE_URL"]
+        API_KEY = os.environ["API_KEY"]
         MODEL_NAME = os.environ.get("MODEL_NAME", "gpt-3.5-turbo")
 
+        print(f"[INFO] Initializing LLM client with base_url: {API_BASE_URL}")
         client = openai.OpenAI(
             base_url=API_BASE_URL,
             api_key=API_KEY
@@ -99,12 +104,14 @@ def main():
 
         for task_id, task_desc in tasks:
             env = TrafficEnvironment(seed=42) # Deterministic for grading
-            obs = env.reset()
+            raw_obs = env.reset()
+            obs = Observation(**raw_obs)
             history = []
             
             for step in range(100):
                 action = get_agent_action(obs, task_desc)
-                next_obs, reward, done, info = env.step(action)
+                next_raw_obs, reward, done, info = env.step(action)
+                next_obs = Observation(**next_raw_obs)
                 
                 # [STEP] output for telemetry
                 # Format reward to 4 decimal places

@@ -84,10 +84,10 @@ class Grader:
             if np.isnan(val) or np.isinf(val):
                 return 0.5
                 
-            # Strictly between 0 and 1. We use a safe buffer [0.15, 0.85].
+            # Strictly between 0 and 1. We use a safe buffer [0.1, 0.9].
             # This ensures we are never 0.0 or 1.0 even with rounding.
             # Convert to standard Python float for validator compatibility.
-            clamped = float(np.clip(val, 0.15, 0.85))
+            clamped = float(np.clip(val, 0.1, 0.9))
             
             # Final sanity check against NaN after clip (rare but defensive)
             if np.isnan(clamped):
@@ -205,18 +205,27 @@ def run_grading(history, task_id):
     g = Grader(task_id)
     return g.grade(history)
 
+def sanitize_output(score):
+    """Deeply sanitizes score to be a Python float in (0.1, 0.9)."""
+    try:
+        if score is None or not isinstance(score, (int, float, np.number)) or np.isnan(score) or np.isinf(score):
+            return 0.5
+        return float(np.clip(float(score), 0.1, 0.9))
+    except (TypeError, ValueError):
+        return 0.5
+
 # Task-specific entry points for compatibility
 def grade_congestion_relief(history):
-    return run_grading(history, "congestion_relief")
+    return sanitize_output(run_grading(history, "congestion_relief"))
 
 def grade_fair_scheduling(history):
-    return run_grading(history, "fair_scheduling")
+    return sanitize_output(run_grading(history, "fair_scheduling"))
 
 def grade_emergency_priority(history):
-    return run_grading(history, "emergency_priority")
+    return sanitize_output(run_grading(history, "emergency_priority"))
 
 def grade_throughput_maximization(history):
-    return run_grading(history, "throughput_maximization")
+    return sanitize_output(run_grading(history, "throughput_maximization"))
 
 if __name__ == "__main__":
     from env import TrafficEnvironment # Local import to avoid circular top-level
